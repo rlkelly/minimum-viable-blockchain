@@ -14,8 +14,6 @@ use std::env;
 pub mod chain;
 pub mod hash;
 pub mod consensus;
-pub mod gossip;
-pub mod peers;
 
 
 fn main() {
@@ -45,5 +43,5 @@ fn main() {
     println!("{:?}", signed_trans.verify());
 
     let args: Vec<String> = env::args().collect();
-    gossip::GossipClient::run(args[1].parse().unwrap());
+    consensus::gossip::GossipClient::run(args[1].parse().unwrap());
 }
