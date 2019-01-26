@@ -1,6 +1,5 @@
-use super::block::Block;
 use super::address::Public;
-
+use super::block::Block;
 
 #[derive(Debug, Clone)]
 pub struct BlockChain {
@@ -8,7 +7,6 @@ pub struct BlockChain {
     pub prev_blocks: Vec<Block>,
     // TODO: nodes
 }
-
 
 impl BlockChain {
     pub fn new(address: Public) -> BlockChain {
@@ -34,7 +32,7 @@ impl BlockChain {
     pub fn verify(&self) -> bool {
         for block in &self.prev_blocks {
             if block.verify() == false {
-                return false
+                return false;
             }
         }
         true

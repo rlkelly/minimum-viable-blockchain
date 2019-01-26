@@ -1,8 +1,7 @@
 use chrono::prelude::*;
 
-use crate::hash::{Hash, EMPTY_HASH, DIFFICULTY};
 use super::address::Public;
-
+use crate::hash::{Hash, DIFFICULTY, EMPTY_HASH};
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Header {

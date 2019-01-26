@@ -1,8 +1,7 @@
 use crypto::ed25519::{signature, verify};
 
-use crate::hash::{Hash, hash_struct};
 use super::address::Public;
-
+use crate::hash::{hash_struct, Hash};
 
 type Signature = Vec<u8>;
 
@@ -21,15 +20,12 @@ pub struct SignedTransaction {
 }
 
 impl SignedTransaction {
-    pub fn new(
-            transaction: Transaction,
-            sender_secret: &[u8]
-    ) -> SignedTransaction {
+    pub fn new(transaction: Transaction, sender_secret: &[u8]) -> SignedTransaction {
         let message: Hash = hash_struct(&transaction);
         let signature: Signature = signature(&message, &sender_secret).to_vec();
-        SignedTransaction{
+        SignedTransaction {
             transaction,
-            signature
+            signature,
         }
     }
 

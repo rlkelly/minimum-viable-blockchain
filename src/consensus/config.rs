@@ -1,7 +1,6 @@
 use std::net::SocketAddr;
 use std::time::Duration;
 
-
 pub struct Config {
     pub address: SocketAddr,
     pub timeout: Duration,

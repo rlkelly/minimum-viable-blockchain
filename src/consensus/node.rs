@@ -1,7 +1,7 @@
 use std::fmt;
 use std::net::SocketAddr;
-use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct Node {

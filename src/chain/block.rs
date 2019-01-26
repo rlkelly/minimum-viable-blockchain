@@ -4,8 +4,7 @@ use rand::prelude::*;
 use super::address::Public;
 use super::header::Header;
 use super::transaction::SignedTransaction;
-use crate::hash::{DIFFICULTY, Hash, hash_vec};
-
+use crate::hash::{hash_vec, Hash, DIFFICULTY};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Block {
@@ -56,16 +55,16 @@ impl Block {
     pub fn verify(&self) -> bool {
         for transaction in &self.transactions {
             if transaction.verify() == false {
-                return false
+                return false;
             }
         }
-        return true
+        return true;
     }
 
     pub fn genesis() -> Block {
-        let transactions: Vec<SignedTransaction> = vec!();
+        let transactions: Vec<SignedTransaction> = vec![];
         let header = Header::genesis();
-        Block{
+        Block {
             header,
             transactions,
         }

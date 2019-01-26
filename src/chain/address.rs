@@ -1,8 +1,7 @@
-use crypto::ed25519::{keypair};
+use crypto::ed25519::keypair;
 use rand::Rng;
 
 use crate::hash::Hash;
-
 
 pub type Public = Hash;
 pub type Private = [u8; 64];

@@ -1,20 +1,20 @@
 extern crate rand;
 extern crate serde;
 
-use crate::consensus::config::Config;
-use crate::consensus::node::{Node, State};
-use crate::consensus::message::Message;
-use crate::consensus::message::Message::{Ack, Join, Ping, SendPeers};
-
 use rand::{thread_rng, Rng};
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use std::net::{SocketAddr, UdpSocket};
-use std::sync::{Arc, RwLock};
-use std::thread::{Builder, sleep, JoinHandle};
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::net::AddrParseError;
+use std::net::{SocketAddr, UdpSocket};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, RwLock};
+use std::thread::{sleep, Builder, JoinHandle};
+
+use crate::consensus::config::Config;
+use crate::consensus::message::Message;
+use crate::consensus::message::Message::{Ack, Join, Ping, SendPeers, Transaction};
+use crate::consensus::node::{Node, State};
 
 pub struct Peers {
     config: Config,
@@ -36,17 +36,21 @@ impl Peers {
 
         let ping_handle = Builder::new()
             .name("ping_scheduler".to_owned())
-            .spawn(move || self1.schedule_pings()).unwrap();
+            .spawn(move || self1.schedule_pings())
+            .unwrap();
 
         let server_handle = Builder::new()
             .name("server".to_owned())
-            .spawn(move || self2.run_server()).unwrap();
+            .spawn(move || self2.run_server())
+            .unwrap();
 
         Ok(vec![ping_handle, server_handle])
     }
 
     pub fn join(&self, address: SocketAddr) -> Result<(), ()> {
-        let msg = Join { from: self.config.address };
+        let msg = Join {
+            from: self.config.address,
+        };
         self.send_message(msg, address)
     }
 
@@ -74,6 +78,9 @@ impl Peers {
                         State::Questionable => self.send_ping(node.address).unwrap(),
                         State::Dead => (),
                     }
+                    if thread_rng().gen_range(0, 100) > 80 {
+                        self.send_all();
+                    }
                     println!("pinging {:?}", node);
                 }
             }
@@ -88,21 +95,37 @@ impl Peers {
 
         loop {
             self.filter_nodes().unwrap();
-            let (number_of_bytes, src_addr) = socket.recv_from(&mut buf).expect("Didn't receive data");
+            let (number_of_bytes, _src_addr) =
+                socket.recv_from(&mut buf).expect("Didn't receive data");
             let mut deserializer = Deserializer::new(&buf[0..number_of_bytes]);
             let msg: Message = Deserialize::deserialize(&mut deserializer).unwrap();
 
             match msg {
                 Ping { from } => self.send_ack(from),
                 Join { from } => self.add_node(from),
-                Ack  { from } => self.reset_count(from),
+                Ack { from } => self.reset_count(from),
                 SendPeers { peers, from } => {
                     self.send_ack(from);
                     self.update_peers(peers)
-                },
+                }
+                Transaction { data, from } => {
+                    println!("{}::{}", data, from);
+                    Ok(())
+                }
                 _ => continue,
             };
-        };
+        }
+    }
+
+    fn send_all(&self) {
+        let nodes = self.nodes.read().unwrap();
+        for node in nodes.values() {
+            let msg = Transaction {
+                data: "Hi".to_string(),
+                from: self.config.address,
+            };
+            self.send_message(msg, node.address).unwrap();
+        }
     }
 
     fn reset_count(&self, from: SocketAddr) -> Result<(), ()> {
@@ -128,7 +151,10 @@ impl Peers {
     }
 
     fn send_peers(&self, address: SocketAddr, all_nodes: String) -> Result<(), ()> {
-        let msg = SendPeers{ peers: all_nodes, from: self.config.address };
+        let msg = SendPeers {
+            peers: all_nodes,
+            from: self.config.address,
+        };
         self.send_message(msg, address)
     }
 
@@ -141,31 +167,32 @@ impl Peers {
             } else if val > 25 {
                 v.state = State::Dead;
             };
-        };
+        }
         Ok(())
     }
 
     fn send_ping(&self, address: SocketAddr) -> Result<(), ()> {
-        let msg = Ping { from: self.config.address };
+        let msg = Ping {
+            from: self.config.address,
+        };
         self.send_message(msg, address)
     }
 
     fn send_ack(&self, address: SocketAddr) -> Result<(), ()> {
-        let msg = Ack { from: self.config.address };
+        let msg = Ack {
+            from: self.config.address,
+        };
         self.send_message(msg, address)
     }
 
     fn update_peers(&self, peers: String) -> Result<(), ()> {
-        // implement
-        println!("received: {}", peers);
         for peer in peers.split(";") {
-            let peer_address: Result<SocketAddr, AddrParseError> = peer
-                .parse();
+            let peer_address: Result<SocketAddr, AddrParseError> = peer.parse();
             match peer_address {
                 Ok(address) => self.add_node(address),
                 Err(_) => Err(()),
             };
-        };
+        }
         Ok(())
     }
 

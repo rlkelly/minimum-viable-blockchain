@@ -6,5 +6,6 @@ pub enum Message {
     SendPeers { peers: String, from: SocketAddr },
     PingReq { from: SocketAddr, to: SocketAddr },
     Ack { from: SocketAddr },
-    Join { from: SocketAddr }
+    Join { from: SocketAddr },
+    Transaction { data: String, from: SocketAddr },
 }
