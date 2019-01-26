@@ -1,12 +1,13 @@
 use std::fmt;
 use std::net::SocketAddr;
+use std::sync::Arc;
+use std::sync::atomic::AtomicUsize;
 
-
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug)]
 pub struct Node {
     pub address: SocketAddr,
     pub state: State,
-    pub last_message: u8,
+    pub last_attempt: Arc<AtomicUsize>,
 }
 
 impl fmt::Display for Node {
