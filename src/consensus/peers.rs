@@ -13,7 +13,8 @@ use std::collections::BTreeMap;
 use std::net::{SocketAddr, UdpSocket};
 use std::sync::{Arc, RwLock};
 use std::thread::{Builder, sleep, JoinHandle};
-
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::net::AddrParseError;
 
 pub struct Peers {
     config: Config,
@@ -53,6 +54,11 @@ impl Peers {
         loop {
             {
                 let nodes = self.nodes.read().unwrap();
+                let mut all_nodes = String::from("");
+                for (key, _) in nodes.iter() {
+                    all_nodes.push_str(key);
+                    all_nodes.push_str(";");
+                }
                 let nodes_length = nodes.len();
                 if nodes_length > 0 {
                     let mut rng = thread_rng();
@@ -62,9 +68,11 @@ impl Peers {
                         rng.gen_range(0, nodes_length * 10)
                     };
                     let node = nodes.values().nth(i % nodes_length).unwrap();
+                    node.last_attempt.fetch_add(1, Ordering::Relaxed);
                     match node.state {
-                        State::Dead => continue,
-                        _ => self.send_peers(node.address).unwrap(),
+                        State::Alive => self.send_peers(node.address, all_nodes).unwrap(),
+                        State::Questionable => self.send_ping(node.address).unwrap(),
+                        State::Dead => (),
                     }
                     println!("pinging {:?}", node);
                 }
@@ -79,7 +87,6 @@ impl Peers {
         let mut buf = [0; 1000];
 
         loop {
-            self.increment_counts().unwrap();
             self.filter_nodes().unwrap();
             let (number_of_bytes, src_addr) = socket.recv_from(&mut buf).expect("Didn't receive data");
             let mut deserializer = Deserializer::new(&buf[0..number_of_bytes]);
@@ -89,7 +96,10 @@ impl Peers {
                 Ping { from } => self.send_ack(from),
                 Join { from } => self.add_node(from),
                 Ack  { from } => self.reset_count(from),
-                SendPeers { from } => self.update_peers(from),
+                SendPeers { peers, from } => {
+                    self.send_ack(from);
+                    self.update_peers(peers)
+                },
                 _ => continue,
             };
         };
@@ -98,7 +108,7 @@ impl Peers {
     fn reset_count(&self, from: SocketAddr) -> Result<(), ()> {
         let mut nodes = self.nodes.write().unwrap();
         if let Some(x) = nodes.get_mut(&from.to_string()) {
-            x.last_message = 0;
+            x.last_attempt = Arc::new(AtomicUsize::new(0));
             x.state = State::Alive;
         };
         Ok(())
@@ -108,7 +118,7 @@ impl Peers {
         let node = Node {
             address: address,
             state: State::Alive,
-            last_message: 0,
+            last_attempt: Arc::new(AtomicUsize::new(0)),
         };
         let mut ns = self.nodes.write().unwrap();
         let address_str = address.to_string();
@@ -117,30 +127,21 @@ impl Peers {
         Ok(())
     }
 
-    fn send_peers(&self, address: SocketAddr) -> Result<(), ()> {
-        let mut nodes = self.nodes.write().unwrap();
-        let all_nodes = format!("{:?}", nodes.keys());
-        let msg = SendPeers(all_nodes);
+    fn send_peers(&self, address: SocketAddr, all_nodes: String) -> Result<(), ()> {
+        let msg = SendPeers{ peers: all_nodes, from: self.config.address };
         self.send_message(msg, address)
     }
 
     fn filter_nodes(&self) -> Result<(), ()> {
         let mut nodes = self.nodes.write().unwrap();
         for (_k, v) in nodes.iter_mut() {
-            if v.last_message > 5 {
+            let val = v.last_attempt.fetch_add(0, Ordering::Relaxed);
+            if val > 5 {
                 v.state = State::Questionable;
-            } else if v.last_message > 25 {
+            } else if val > 25 {
                 v.state = State::Dead;
             };
         };
-        Ok(())
-    }
-
-    fn increment_counts(&self) -> Result<(), ()> {
-        let mut nodes = self.nodes.write().unwrap();
-        for val in nodes.values_mut() {
-            val.last_message += 1;
-        }
         Ok(())
     }
 
@@ -152,6 +153,20 @@ impl Peers {
     fn send_ack(&self, address: SocketAddr) -> Result<(), ()> {
         let msg = Ack { from: self.config.address };
         self.send_message(msg, address)
+    }
+
+    fn update_peers(&self, peers: String) -> Result<(), ()> {
+        // implement
+        println!("received: {}", peers);
+        for peer in peers.split(";") {
+            let peer_address: Result<SocketAddr, AddrParseError> = peer
+                .parse();
+            match peer_address {
+                Ok(address) => self.add_node(address),
+                Err(_) => Err(()),
+            };
+        };
+        Ok(())
     }
 
     fn send_message(&self, msg: Message, address: SocketAddr) -> Result<(), ()> {
