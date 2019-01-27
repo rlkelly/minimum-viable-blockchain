@@ -78,9 +78,6 @@ impl Peers {
                         State::Questionable => self.send_ping(node.address).unwrap(),
                         State::Dead => (),
                     }
-                    if thread_rng().gen_range(0, 100) > 80 {
-                        self.send_all();
-                    }
                     println!("pinging {:?}", node);
                 }
             }
@@ -108,8 +105,10 @@ impl Peers {
                     self.send_ack(from).unwrap();
                     self.update_peers(peers)
                 }
-                Transaction { data, from } => {
-                    println!("{}::{}", data, from);
+                Transaction { transaction, from } => {
+                    println!("Signed::{}", from);
+                    // Update Block
+                    // If new... send to peers send_all()
                     Ok(())
                 }
                 _ => continue,
@@ -117,14 +116,10 @@ impl Peers {
         }
     }
 
-    fn send_all(&self) {
+    fn send_all(&self, msg: Message) {
         let nodes = self.nodes.read().unwrap();
         for node in nodes.values() {
-            let msg = Transaction {
-                data: "Hi".to_string(),
-                from: self.config.address,
-            };
-            self.send_message(msg, node.address).unwrap();
+            self.send_message(msg.clone(), node.address).unwrap();
         }
     }
 
