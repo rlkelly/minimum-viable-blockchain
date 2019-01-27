@@ -13,6 +13,7 @@ name = "main"
 path = "./src/main.rs"
 
 [dependencies]
+bitcoin = "0.16"
 byteorder = "1.0"
 chrono = "0.4"
 futures = "0.1"

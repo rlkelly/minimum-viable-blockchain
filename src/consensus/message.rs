@@ -1,11 +1,13 @@
 use std::net::SocketAddr;
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+use crate::chain::transaction::SignedTransaction;
+
+#[derive(Debug, PartialEq, Deserialize, Serialize, Clone)]
 pub enum Message {
     Ping { from: SocketAddr },
     SendPeers { peers: String, from: SocketAddr },
     PingReq { from: SocketAddr, to: SocketAddr },
     Ack { from: SocketAddr },
     Join { from: SocketAddr },
-    Transaction { data: String, from: SocketAddr },
+    Transaction { transaction: SignedTransaction, from: SocketAddr },
 }

@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate serde_derive;
 
+extern crate bitcoin;
 extern crate chrono;
 extern crate crypto;
 extern crate futures;
@@ -19,9 +20,13 @@ use self::chain::address::new_keypair;
 use self::chain::blockchain::BlockChain;
 use self::hash::{hash_vec, Hash};
 use std::env;
+use bitcoin::util::base58;
 
 fn main() {
     let (my_secret, my_public) = new_keypair();
+    println!("public:{}", base58::encode_slice(&my_public));
+    println!("private:{}", base58::encode_slice(&my_secret));
+    println!("back:{:?}", base58::from(&base58::encode_slice(&my_secret)));
     println!("{:?}:{:?}", my_secret.to_vec(), my_public.to_vec());
     let (_receiver_secret, receiver_public) = new_keypair();
     let trans = chain::transaction::Transaction {

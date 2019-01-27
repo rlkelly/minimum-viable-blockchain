@@ -1,3 +1,4 @@
+use bitcoin::util::base58;
 use rmp_serde::Serializer;
 use serde::Serialize;
 use std::io;
@@ -10,7 +11,7 @@ use crate::consensus::peers::serialize_message;
 use crate::chain::transaction::{Transaction, SignedTransaction};
 
 const HOST: &str = "127.0.0.1:3000";
-const MINE: &str = "127.0.0.1:3001";
+const MINE: &str = "127.0.0.1:4001";
 
 fn slice_to_arr32<T>(slice: &[T]) -> Option<&[T; 32]> {
     if slice.len() == 32 {
@@ -48,33 +49,37 @@ pub fn run_wallet() {
         io::stdout().flush().unwrap();
         io::stdin().read_line(&mut block_number).expect("reading from stdin failed");
 
-        let sender_public_key: [u8; 32] = *slice_to_arr32(public_key_buffer.as_bytes()).expect("invalid length");
-        let receiver_public_key: [u8; 32] = *slice_to_arr32(receiver_buffer.as_bytes()).expect("invalid length");
+        let sender_public_key = base58::from(&public_key_buffer.trim()).expect("invalid String");
+        let receiver_public_key = base58::from(&receiver_buffer.trim()).expect("invalid String");
+        let sender_private_key = base58::from(&priv_key_buffer.trim()).expect("invalid String");
 
         let transaction = Transaction {
-            sender: sender_public_key,
-            receiver: receiver_public_key,
-            amount: amount_buffer.parse().expect("invalid amount"),
-            block: block_number.parse().expect("invalid block"),
+            sender: *slice_to_arr32(&sender_public_key).unwrap(),
+            receiver: *slice_to_arr32(&receiver_public_key).unwrap(),
+            amount: amount_buffer.trim().parse().expect("invalid amount"),
+            block: block_number.trim().parse().expect("invalid block"),
         };
 
-        let signed_transaction = SignedTransaction::new(transaction, &priv_key_buffer.as_bytes());
+        let signed_transaction = SignedTransaction::new(transaction, &sender_private_key);
         if signed_transaction.verify() {
             let socket = net::UdpSocket::bind(MINE).expect("failed to bind host socket");
-            let address: SocketAddr = HOST.parse().unwrap();
+            let address: SocketAddr = MINE.parse().expect("invalid socket");
 
             let mut buf = Vec::new();
-            signed_transaction.serialize(&mut Serializer::new(&mut buf)).unwrap();
+            signed_transaction.serialize(&mut Serializer::new(&mut buf)).expect("Serialization Error");
 
             let msg : Message = Message::Transaction {
-                data: std::str::from_utf8(&buf).unwrap().to_string(),
+                transaction: signed_transaction,
                 from: address,
             };
-
             socket.send_to(&serialize_message(msg), &HOST).unwrap();
+            println!("Transaction Sent!\n");
         } else {
             println!("Invalid Transaction");
         }
 
     }
 }
+
+
+// "println!("str:{}", base58::encode_slice(&my_public));"
