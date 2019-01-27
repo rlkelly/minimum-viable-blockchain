@@ -12,7 +12,6 @@ use std::sync::{Arc, RwLock};
 use std::thread::{sleep, Builder, JoinHandle};
 
 use crate::consensus::config::Config;
-use crate::chain::address::Public;
 use crate::chain::blockchain::BlockChain;
 use crate::consensus::message::Message::{self, Ack, Join, Ping, SendPeers, Transaction};
 use crate::consensus::node::{Node, State};
@@ -20,15 +19,16 @@ use crate::consensus::node::{Node, State};
 pub struct Miner {
     config: Config,
     nodes: RwLock<BTreeMap<String, Node>>,
-    blockchain: BlockChain,
+    blockchain: RwLock<BlockChain>,
 }
 
 impl Miner {
     pub fn with_config(config: Config) -> Miner {
+        let wallet = config.wallet.clone();
         Miner {
             config: config,
             nodes: RwLock::new(BTreeMap::new()),
-            blockchain: BlockChain::new(config.wallet),
+            blockchain: RwLock::new(BlockChain::new(wallet)),
         }
     }
 
@@ -108,9 +108,9 @@ impl Miner {
                     self.update_peers(peers)
                 }
                 Transaction { transaction, from } => {
-                    if !block.contains(transaction) {
-                        // add to block
-                        self.send_all(msg)
+                    let mut blockchain = self.blockchain.write().unwrap();
+                    if blockchain.add_transaction(transaction.clone()) {
+                        self.send_all(Transaction{transaction, from})
                     }
                     Ok(())
                 }

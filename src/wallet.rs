@@ -7,7 +7,7 @@ use std::net;
 use std::net::SocketAddr;
 
 use crate::consensus::message::Message;
-use crate::consensus::peers::serialize_message;
+use crate::consensus::miner::serialize_message;
 use crate::chain::transaction::{Transaction, SignedTransaction};
 
 const HOST: &str = "127.0.0.1:3000";

@@ -14,7 +14,7 @@ pub struct GossipClient;
 
 impl GossipClient {
     pub fn run(addr: u16) {
-        let private, public = new_keypair();
+        let (_private, public) = new_keypair();
         let config = Config {
             address: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), addr),
             timeout: Duration::from_millis(5000),
@@ -29,8 +29,7 @@ impl GossipClient {
         g.join(SocketAddr::new(
             IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
             addr,
-        ))
-        .unwrap();
+        )).expect("Invalid Port");
         // the default node
         g.add_node(SocketAddr::new(
             IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
