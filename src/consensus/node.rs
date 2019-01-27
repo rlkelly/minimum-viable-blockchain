@@ -8,6 +8,7 @@ pub struct Node {
     pub address: SocketAddr,
     pub state: State,
     pub last_attempt: Arc<AtomicUsize>,
+    pub last_response: Arc<AtomicUsize>,
 }
 
 impl fmt::Display for Node {

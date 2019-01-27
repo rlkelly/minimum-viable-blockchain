@@ -22,13 +22,19 @@ impl Block {
         }
     }
 
-    pub fn add_transaction(&mut self, transaction: SignedTransaction) {
-        if transaction.verify_signature() {
+    pub fn add_transaction(
+        &mut self,
+        transaction: SignedTransaction,
+        blockchain: &mut BlockChain,
+    ) -> bool {
+        if transaction.verify(blockchain) {
             if !self.transactions.contains(&transaction) {
                 self.transactions.push(transaction);
                 self.update_header();
+                return true;
             }
         }
+        false
     }
 
     pub fn update_header(&mut self) {

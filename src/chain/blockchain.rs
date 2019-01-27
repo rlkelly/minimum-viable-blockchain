@@ -1,5 +1,6 @@
 use super::address::Public;
 use super::block::Block;
+use super::transaction::SignedTransaction;
 
 #[derive(Debug, Clone)]
 pub struct BlockChain {
@@ -25,6 +26,17 @@ impl BlockChain {
             self.current_block = Block::new(&block, address);
             self.prev_blocks.push(block);
             return true;
+        }
+        false
+    }
+
+    pub fn add_transaction(&mut self, transaction: SignedTransaction) -> bool {
+        if transaction.verify(self) {
+            if !self.current_block.transactions.contains(&transaction) {
+                self.current_block.transactions.push(transaction);
+                self.current_block.update_header();
+                return true;
+            }
         }
         false
     }
