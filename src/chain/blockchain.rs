@@ -2,7 +2,7 @@ use super::address::Public;
 use super::block::Block;
 use super::transaction::SignedTransaction;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct BlockChain {
     pub current_block: Block,
     pub prev_blocks: Vec<Block>,
