@@ -1,7 +1,6 @@
 extern crate rand;
 extern crate serde;
 
-use rand::{thread_rng, Rng};
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -9,11 +8,11 @@ use std::net::AddrParseError;
 use std::net::{SocketAddr, UdpSocket};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, RwLock};
-use std::thread::{sleep, Builder, JoinHandle};
+use std::thread::{Builder, JoinHandle};
 
 use crate::consensus::config::Config;
 use crate::chain::blockchain::BlockChain;
-use crate::consensus::message::Message::{self, Ack, Join, Ping, SendPeers, Transaction};
+use crate::consensus::message::Message::{self, Ack, Join, NewBlock, Ping, SendPeers, Transaction};
 use crate::consensus::node::{Node, State};
 
 pub struct Miner {
@@ -80,7 +79,15 @@ impl Miner {
                     println!("pinging {:?}", node);
                 }
             }
-            sleep(self.config.detection_period);
+            let mut blockchain = self.blockchain.write().unwrap();
+            for _ in 1..10000 {
+                let valid = blockchain.prove_work();
+                if valid {
+                    let msg = NewBlock { block: blockchain.current_block.clone(), from: self.config.address };
+                    self.send_all(msg);
+                    blockchain.add_current_block(self.config.wallet);
+                }
+            }
         }
     }
 
@@ -108,11 +115,22 @@ impl Miner {
                     let mut blockchain = self.blockchain.write().unwrap();
                     // if it's a new transaction, send to everyone
                     if blockchain.add_transaction(transaction.clone()) {
-                        println!("added transaction");
                         self.send_all(Transaction{transaction, from})
                     }
                     Ok(())
-                }
+                },
+                NewBlock { block, from } => {
+                    println!("received new block");
+                    let mut blockchain = self.blockchain.write().unwrap();
+                    if block.header.index == blockchain.current_block.header.index {
+                        if blockchain.receive_new_block(block.clone(), self.config.wallet) {
+                            self.send_all(NewBlock{block, from})
+                        }
+                    }
+                    println!("current index: {}", blockchain.current_block.header.index);
+                    Ok(())
+
+                },
                 _ => continue,
             }.unwrap();
         }
