@@ -21,7 +21,7 @@ impl BlockChain {
     }
 
     pub fn receive_new_block(&mut self, block: Block, address: Public) -> bool {
-        if block.verify() {
+        if block.verify(self) {
             self.current_block = Block::new(&block, address);
             self.prev_blocks.push(block);
             return true;
@@ -31,7 +31,7 @@ impl BlockChain {
 
     pub fn verify(&self) -> bool {
         for block in &self.prev_blocks {
-            if block.verify() == false {
+            if block.verify(self) == false {
                 return false;
             }
         }

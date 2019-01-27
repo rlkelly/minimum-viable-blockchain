@@ -61,7 +61,7 @@ pub fn run_wallet() {
         };
 
         let signed_transaction = SignedTransaction::new(transaction, &sender_private_key);
-        if signed_transaction.verify() {
+        if signed_transaction.verify_signature() {
             let socket = net::UdpSocket::bind(MINE).expect("failed to bind host socket");
             let address: SocketAddr = MINE.parse().expect("invalid socket");
 
@@ -77,9 +77,5 @@ pub fn run_wallet() {
         } else {
             println!("Invalid Transaction");
         }
-
     }
 }
-
-
-// "println!("str:{}", base58::encode_slice(&my_public));"

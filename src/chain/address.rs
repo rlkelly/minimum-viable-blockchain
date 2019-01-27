@@ -22,6 +22,6 @@ pub fn generate_keypair_strings(seed: &Public) -> (String, String) {
     (base58::encode_slice(&public), base58::encode_slice(&private))
 }
 
-pub fn new_keypair() -> ([u8; 64], [u8; 32]) {
+pub fn new_keypair() -> (Private, Public) {
     generate_keypair(&gen_seed())
 }

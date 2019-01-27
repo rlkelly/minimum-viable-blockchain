@@ -50,7 +50,7 @@ fn main() {
         block: 0,
     };
     let signed_trans = chain::transaction::SignedTransaction::new(trans, &sender_secret);
-    println!("{:?}", signed_trans.verify());
+    println!("{:?}", signed_trans.verify_signature());
 
     let args: Vec<String> = env::args().collect();
     if args.len() >= 2 {
