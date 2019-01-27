@@ -59,22 +59,19 @@ impl Miner {
     fn schedule_pings(&self) {
         loop {
             {
+                self.filter_nodes().unwrap();
                 let nodes = self.nodes.read().unwrap();
                 let mut all_nodes = String::from("");
                 for (key, _) in nodes.iter() {
                     all_nodes.push_str(key);
                     all_nodes.push_str(";");
                 }
+
                 let nodes_length = nodes.len();
                 if nodes_length > 0 {
-                    let mut rng = thread_rng();
-                    let i = if nodes_length == 1 {
-                        0
-                    } else {
-                        rng.gen_range(0, nodes_length * 10)
-                    };
-                    let node = nodes.values().nth(i % nodes_length).unwrap();
-                    node.last_attempt.fetch_add(1, Ordering::Relaxed);
+                    let node = nodes.values().max_by_key(|n| n.last_attempt.fetch_add(0, Ordering::Relaxed)).unwrap();
+                    node.last_attempt.swap(0, Ordering::Relaxed);
+                    node.last_response.fetch_add(1, Ordering::Relaxed);
                     match node.state {
                         State::Alive => self.send_peers(node.address, all_nodes).unwrap(),
                         State::Questionable => self.send_ping(node.address).unwrap(),
@@ -93,7 +90,6 @@ impl Miner {
         let mut buf = [0; 1000];
 
         loop {
-            self.filter_nodes().unwrap();
             let (number_of_bytes, _src_addr) =
                 socket.recv_from(&mut buf).expect("Didn't receive data");
             let mut deserializer = Deserializer::new(&buf[0..number_of_bytes]);
@@ -108,8 +104,11 @@ impl Miner {
                     self.update_peers(peers)
                 }
                 Transaction { transaction, from } => {
+                    println!("received transaction");
                     let mut blockchain = self.blockchain.write().unwrap();
+                    // if it's a new transaction, send to everyone
                     if blockchain.add_transaction(transaction.clone()) {
+                        println!("added transaction");
                         self.send_all(Transaction{transaction, from})
                     }
                     Ok(())
@@ -122,14 +121,16 @@ impl Miner {
     fn send_all(&self, msg: Message) {
         let nodes = self.nodes.read().unwrap();
         for node in nodes.values() {
-            self.send_message(msg.clone(), node.address).unwrap();
+            if node.address != self.config.address {
+                self.send_message(msg.clone(), node.address).unwrap();
+            }
         }
     }
 
     fn reset_count(&self, from: SocketAddr) -> Result<(), ()> {
         let mut nodes = self.nodes.write().unwrap();
         if let Some(x) = nodes.get_mut(&from.to_string()) {
-            x.last_attempt = Arc::new(AtomicUsize::new(0));
+            x.last_response = Arc::new(AtomicUsize::new(0));
             x.state = State::Alive;
         };
         Ok(())
@@ -140,6 +141,7 @@ impl Miner {
             address: address,
             state: State::Alive,
             last_attempt: Arc::new(AtomicUsize::new(0)),
+            last_response: Arc::new(AtomicUsize::new(0)),
         };
         let mut ns = self.nodes.write().unwrap();
         let address_str = address.to_string();
@@ -159,7 +161,7 @@ impl Miner {
     fn filter_nodes(&self) -> Result<(), ()> {
         let mut nodes = self.nodes.write().unwrap();
         for (_k, v) in nodes.iter_mut() {
-            let val = v.last_attempt.fetch_add(0, Ordering::Relaxed);
+            let val = v.last_attempt.fetch_add(1, Ordering::Relaxed);
             if val > 5 {
                 v.state = State::Questionable;
             } else if val > 25 {
