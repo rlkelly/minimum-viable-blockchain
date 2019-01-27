@@ -60,21 +60,15 @@ impl Miner {
             {
                 self.filter_nodes().unwrap();
                 let nodes = self.nodes.read().unwrap();
-                let mut all_nodes = String::from("");
-                for (key, _) in nodes.iter() {
-                    all_nodes.push_str(key);
-                    all_nodes.push_str(";");
-                }
-
                 let nodes_length = nodes.len();
                 if nodes_length > 0 {
                     let node = nodes.values().max_by_key(|n| n.last_attempt.fetch_add(0, Ordering::Relaxed)).unwrap();
                     node.last_attempt.swap(0, Ordering::Relaxed);
                     node.last_response.fetch_add(1, Ordering::Relaxed);
                     match node.state {
-                        State::Alive => self.send_peers(node.address, all_nodes).unwrap(),
+                        State::Alive => self.send_peers(node.address).unwrap(),
                         State::Questionable => self.send_ping(node.address).unwrap(),
-                        State::Dead => (),
+                        State::Dead => self.send_ping(node.address).unwrap(),
                     }
                     println!("pinging {:?}", node);
                 }
@@ -138,7 +132,7 @@ impl Miner {
 
     fn send_all(&self, msg: Message) {
         let nodes = self.nodes.read().unwrap();
-        for node in nodes.values() {
+        for node in nodes.values().filter(|x| x.state != State::Dead) {
             if node.address != self.config.address {
                 self.send_message(msg.clone(), node.address).unwrap();
             }
@@ -168,7 +162,14 @@ impl Miner {
         Ok(())
     }
 
-    fn send_peers(&self, address: SocketAddr, all_nodes: String) -> Result<(), ()> {
+    fn send_peers(&self, address: SocketAddr) -> Result<(), ()> {
+        let nodes = self.nodes.read().unwrap();
+        let mut all_nodes = String::from("");
+        for (key, _) in nodes.iter() {
+            all_nodes.push_str(key);
+            all_nodes.push_str(";");
+        }
+
         let msg = SendPeers {
             peers: all_nodes,
             from: self.config.address,
@@ -182,7 +183,7 @@ impl Miner {
             let val = v.last_attempt.fetch_add(1, Ordering::Relaxed);
             if val > 5 {
                 v.state = State::Questionable;
-            } else if val > 25 {
+            } else if val > 10 {
                 v.state = State::Dead;
             };
         }

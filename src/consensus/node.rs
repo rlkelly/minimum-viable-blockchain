@@ -17,7 +17,7 @@ impl fmt::Display for Node {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum State {
     Alive,
     Questionable,
