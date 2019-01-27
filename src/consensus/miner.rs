@@ -80,7 +80,7 @@ impl Miner {
                 }
             }
             let mut blockchain = self.blockchain.write().unwrap();
-            for _ in 1..10000 {
+            for _ in 1..5000 {
                 let valid = blockchain.prove_work();
                 if valid {
                     let msg = NewBlock { block: blockchain.current_block.clone(), from: self.config.address };
