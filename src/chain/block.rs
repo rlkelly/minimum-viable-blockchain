@@ -5,9 +5,9 @@ use super::address::Public;
 use super::blockchain::BlockChain;
 use super::header::Header;
 use super::transaction::SignedTransaction;
-use crate::hash::{hash_vec, Hash, DIFFICULTY};
+use crate::hash::{hash_vec, hash_struct, Hash, DIFFICULTY};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Block {
     pub header: Header,
     pub transactions: Vec<SignedTransaction>,
@@ -46,9 +46,11 @@ impl Block {
     pub fn prove_work(&mut self) -> bool {
         let mut rng = rand::thread_rng();
         let nonce: u64 = rng.gen();
-        let my_vec: Hash = hash_vec(&self.transactions);
-        if my_vec[..4] == DIFFICULTY {
-            self.header.nonce = nonce;
+        self.header.nonce = nonce;
+        let my_vec: Hash = hash_struct(&self);
+        // println!("{:?}", my_vec[..2].to_vec());
+        if my_vec[..2] == DIFFICULTY {
+            println!("FOUND BLOCK!");
             true
         } else {
             false

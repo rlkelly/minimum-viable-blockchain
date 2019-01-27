@@ -21,6 +21,13 @@ impl BlockChain {
         }
     }
 
+    pub fn add_current_block(&mut self, address: Public) {
+        let new_block = Block::new(&self.current_block, address);
+        let old_block = self.current_block.clone();
+        self.prev_blocks.push(old_block);
+        self.current_block = new_block;
+    }
+
     pub fn receive_new_block(&mut self, block: Block, address: Public) -> bool {
         if block.verify(self) {
             self.current_block = Block::new(&block, address);
@@ -48,5 +55,9 @@ impl BlockChain {
             }
         }
         true
+    }
+
+    pub fn prove_work(&mut self) -> bool {
+        self.current_block.prove_work()
     }
 }

@@ -13,7 +13,7 @@ pub struct Header {
     pub transactions_hash: Hash,
     pub nonce: u64,
     pub hash: Hash,
-    pub difficulty: [u8; 4],
+    pub difficulty: [u8; 2],
     pub coinbase: Public,
 }
 
