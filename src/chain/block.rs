@@ -2,6 +2,7 @@ use chrono::prelude::*;
 use rand::prelude::*;
 
 use super::address::Public;
+use super::blockchain::BlockChain;
 use super::header::Header;
 use super::transaction::SignedTransaction;
 use crate::hash::{hash_vec, Hash, DIFFICULTY};
@@ -22,7 +23,7 @@ impl Block {
     }
 
     pub fn add_transaction(&mut self, transaction: SignedTransaction) {
-        if transaction.verify() {
+        if transaction.verify_signature() {
             if !self.transactions.contains(&transaction) {
                 self.transactions.push(transaction);
                 self.update_header();
@@ -48,17 +49,21 @@ impl Block {
         }
     }
 
-    pub fn filter_transactions(&mut self) {
-        &self.transactions.retain(|trans| trans.verify());
+    pub fn filter_transactions(&mut self, blockchain: BlockChain) {
+        &self.transactions.retain(|trans| trans.verify(&blockchain));
     }
 
-    pub fn verify(&self) -> bool {
+    pub fn contains(&mut self, transaction: &SignedTransaction) -> bool {
+        self.transactions.contains(transaction)
+    }
+
+    pub fn verify(&self, blockchain: &BlockChain) -> bool {
         for transaction in &self.transactions {
-            if transaction.verify() == false {
+            if transaction.verify(blockchain) == false {
                 return false;
             }
         }
-        return true;
+        true
     }
 
     pub fn genesis() -> Block {

@@ -1,6 +1,8 @@
 use crypto::ed25519::{signature, verify};
 
 use super::address::Public;
+use super::balance::Account;
+use super::blockchain::BlockChain;
 use crate::hash::{hash_struct, Hash};
 
 type Signature = Vec<u8>;
@@ -29,8 +31,17 @@ impl SignedTransaction {
         }
     }
 
-    pub fn verify(&self) -> bool {
+    pub fn verify(&self, blockchain: &BlockChain) -> bool {
+        self.verify_signature() && self.verify_balance(blockchain)
+    }
+
+    pub fn verify_signature(&self) -> bool {
         let message: Hash = hash_struct(&self.transaction);
         verify(&message, &self.transaction.sender, &self.signature)
+    }
+
+    pub fn verify_balance(&self, blockchain: &BlockChain) -> bool {
+        let account = Account::new(self.transaction.sender, blockchain);
+        account.balance > self.transaction.amount
     }
 }

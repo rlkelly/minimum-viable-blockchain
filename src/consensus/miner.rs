@@ -12,26 +12,28 @@ use std::sync::{Arc, RwLock};
 use std::thread::{sleep, Builder, JoinHandle};
 
 use crate::consensus::config::Config;
-use crate::consensus::message::Message;
-use crate::consensus::message::Message::{Ack, Join, Ping, SendPeers, Transaction};
+use crate::chain::address::Public;
+use crate::chain::blockchain::BlockChain;
+use crate::consensus::message::Message::{self, Ack, Join, Ping, SendPeers, Transaction};
 use crate::consensus::node::{Node, State};
 
-pub struct Peers {
+pub struct Miner {
     config: Config,
-    /// A map where the key is the address <ip>:<port> and the value is a Node.
     nodes: RwLock<BTreeMap<String, Node>>,
+    blockchain: BlockChain,
 }
 
-impl Peers {
-    pub fn with_config(config: Config) -> Peers {
-        Peers {
+impl Miner {
+    pub fn with_config(config: Config) -> Miner {
+        Miner {
             config: config,
             nodes: RwLock::new(BTreeMap::new()),
+            blockchain: BlockChain::new(config.wallet),
         }
     }
 
-    pub fn start(peers: Arc<Self>) -> Result<Vec<JoinHandle<()>>, ()> {
-        let self1 = peers.clone();
+    pub fn start(miner: Arc<Self>) -> Result<Vec<JoinHandle<()>>, ()> {
+        let self1 = miner.clone();
         let self2 = self1.clone();
 
         let ping_handle = Builder::new()
@@ -106,9 +108,10 @@ impl Peers {
                     self.update_peers(peers)
                 }
                 Transaction { transaction, from } => {
-                    println!("Signed::{}", from);
-                    // Update Block
-                    // If new... send to peers send_all()
+                    if !block.contains(transaction) {
+                        // add to block
+                        self.send_all(msg)
+                    }
                     Ok(())
                 }
                 _ => continue,

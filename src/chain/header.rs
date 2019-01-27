@@ -3,6 +3,8 @@ use chrono::prelude::*;
 use super::address::Public;
 use crate::hash::{Hash, DIFFICULTY, EMPTY_HASH};
 
+pub const COINBASE_VALUE: f64 = 100.0;
+
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Header {
     pub index: u64,
