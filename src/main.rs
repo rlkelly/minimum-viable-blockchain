@@ -13,6 +13,7 @@ extern crate tokio_core;
 pub mod chain;
 pub mod consensus;
 pub mod hash;
+pub mod wallet;
 
 use self::chain::address::new_keypair;
 use self::chain::blockchain::BlockChain;
@@ -20,7 +21,8 @@ use self::hash::{hash_vec, Hash};
 use std::env;
 
 fn main() {
-    let (_my_secret, my_public) = new_keypair();
+    let (my_secret, my_public) = new_keypair();
+    println!("{:?}:{:?}", my_secret.to_vec(), my_public.to_vec());
     let (_receiver_secret, receiver_public) = new_keypair();
     let trans = chain::transaction::Transaction {
         sender: my_public,
@@ -46,5 +48,9 @@ fn main() {
     println!("{:?}", signed_trans.verify());
 
     let args: Vec<String> = env::args().collect();
-    consensus::gossip::GossipClient::run(args[1].parse().unwrap());
+    if args.len() >= 2 {
+        consensus::gossip::GossipClient::run(args[1].parse().expect("Invalid Port"));
+    } else {
+        consensus::gossip::GossipClient::run(3000);
+    }
 }

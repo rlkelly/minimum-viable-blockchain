@@ -105,7 +105,7 @@ impl Peers {
                 Join { from } => self.add_node(from),
                 Ack { from } => self.reset_count(from),
                 SendPeers { peers, from } => {
-                    self.send_ack(from);
+                    self.send_ack(from).unwrap();
                     self.update_peers(peers)
                 }
                 Transaction { data, from } => {
@@ -113,7 +113,7 @@ impl Peers {
                     Ok(())
                 }
                 _ => continue,
-            };
+            }.unwrap();
         }
     }
 
@@ -189,9 +189,9 @@ impl Peers {
         for peer in peers.split(";") {
             let peer_address: Result<SocketAddr, AddrParseError> = peer.parse();
             match peer_address {
-                Ok(address) => self.add_node(address),
-                Err(_) => Err(()),
-            };
+                Ok(address) => self.add_node(address).unwrap(),
+                Err(_) => (),
+            }
         }
         Ok(())
     }
@@ -206,4 +206,10 @@ impl Peers {
         socket.send_to(&buf, address).map(|_| ()).unwrap();
         Ok(())
     }
+}
+
+pub fn serialize_message(msg: Message) -> Vec<u8> {
+    let mut buf = Vec::new();
+    msg.serialize(&mut Serializer::new(&mut buf)).unwrap();
+    buf
 }
